@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朋友出遊喬時間神器 (雙視角版)</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Apple LiGothic Medium', sans-serif;
+            background-color: #f5f6fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        /* 頂部切換與控制區塊 */
+        .control-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .view-toggle button {
+            background-color: #34495e;
+            color: white;
+            border: 1px solid #1abc9c;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .view-toggle button:first-child {
+            border-radius: 6px 0 0 6px;
+        }
+        .view-toggle button:last-child {
+            border-radius: 0 6px 6px 0;
+        }
+        .view-toggle button.active {
+            background-color: #1abc9c;
+            color: #fff;
+        }
+
+        .date-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .date-control input[type="date"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .nav-btn {
+            background-color: #34495e;
+            color: white;
+            border: 2px solid #ecf0f1;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #1abc9c;
+            border-color: #1abc9c;
+        }
+        
+        /* 輸入表單區塊 */
+        .form-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            min-width: 150px;
+        }
+        .btn-add {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-add:hover { background-color: #27ae60; }
+        .btn-clear {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-clear:hover { background-color: #c0392b; }
+
+        /* 週檢視 (原本的樣式) */
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .day-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 180px;
+        }
+
+        /* 月檢視 (新增的樣式) */
+        .month-grid {
+            display: none; /* 預設先隱藏，靠 JS 切換 */
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .month-header-cell {
+            text-align: center;
+            font-weight: bold;
+            color: #7f8c8d;
+            padding: 10px 0;
+            background: #e0e6ed;
+            border-radius: 8px;
+        }
+        .month-cell {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 80px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        .month-cell.empty-cell {
+            background: transparent;
+            box-shadow: none;
+        }
+        .month-date-text {
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 8px;
+        }
+        .month-busy-names {
+            font-size: 0.75rem;
+            color: #e74c3c;
+            text-align: center;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+
+        /* 狀態點點 */
+        .status-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        .status-dot.small {
+            width: 14px;
+            height: 14px;
+            margin-bottom: 5px;
+        }
+        .green {
+            background-color: #2ecc71;
+            box-shadow: 0 0 8px rgba(46,204,113,0.5);
+        }
+        .empty {
+            background-color: transparent;
+            border: 2px dashed #bdc3c7;
+        }
+
+        /* 忙碌名單列表 (週檢視用) */
+        .busy-list {
+            font-size: 0.85rem;
+            color: #555;
+            width: 100%;
+            text-align: left;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            overflow-y: auto;
+            max-height: 100px;
+        }
+        .busy-item {
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .delete-item-btn {
+            color: #e74c3c;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📅 朋友出遊喬時間神器</h1>
+
+    <div class="control-panel">
+        <div class="view-toggle">
+            <button id="btnWeek" class="active" onclick="switchView('week')">週檢視</button>
+            <button id="btnMonth" onclick="switchView('month')">月檢視</button>
+        </div>
+
+        <div class="date-control">
+            <button class="nav-btn" onclick="shiftTime(-1)">⬅️ 往前</button>
+            <input type="date" id="startDatePicker" onchange="updateCalendar()">
+            <button class="nav-btn" onclick="shiftTime(1)">往後 ➡️</button>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="form-group">
+            <label for="eventDate">登記日期</label>
+            <select id="eventDate">
+                </select>
+        </div>
+        <div class="form-group">
+            <label for="personName">誰沒空？ (名字)</label>
+            <input type="text" id="personName" placeholder="例如：小明" required>
+        </div>
+        <div class="form-group">
+            <label for="eventTitle">要做什麼？ (活動)</label>
+            <input type="text" id="eventTitle" placeholder="例如：打工" required>
+        </div>
+        <button class="btn-add" onclick="addEvent()">新增行程</button>
+        <button class="btn-clear" onclick="clearAllData()">全部清空</button>
+    </div>
+
+    <div class="week-grid" id="weekGrid"></div>
+
+    <div class="month-grid" id="monthGrid"></div>
+
+</div>
+
+<script>
+    let scheduleData = JSON.parse(localStorage.getItem('friendGroupSchedule')) || {};
+    let currentView = 'week'; // 預設顯示週檢視
+
+    // 將 Date 物件轉為 YYYY-MM-DD 格式
+    function formatDateToYYYYMMDD(dateObj) {
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // 切換檢視模式 (週 / 月)
+    function switchView(mode) {
+        currentView = mode;
+        document.getElementById('btnWeek').classList.toggle('active', mode === 'week');
+        document.getElementById('btnMonth').classList.toggle('active', mode === 'month');
+        
+        document.getElementById('weekGrid').style.display = mode === 'week' ? 'grid' : 'none';
+        document.getElementById('monthGrid').style.display = mode === 'month' ? 'grid' : 'none';
+        
+        updateCalendar();
+    }
+
+    // 往前或往後推移時間 (根據當前模式決定是推移 7 天還是 1 個月)
+    function shiftTime(direction) {
+        const datePicker = document.getElementById('startDatePicker');
+        if (!datePicker.value) return;
+        
+        const currentDate = new Date(datePicker.value);
+        
+        if (currentView === 'week') {
+            currentDate.setDate(currentDate.getDate() + (direction * 7));
+        } else {
+            // 月檢視：切換到上個月或下個月的第一天
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            currentDate.setDate(1); 
+        }
+        
+        datePicker.value = formatDateToYYYYMMDD(currentDate);
+        updateCalendar();
+    }
+
+    // 核心：更新整個畫面
+    function updateCalendar() {
+        const pickedDate = document.getElementById('startDatePicker').value;
+        if (!pickedDate) return;
+        const start = new Date(pickedDate);
+        
+        // 更新下拉選單 (給新增行程用的，永遠顯示選定日期往後 30 天)
+        updateDropdown(start);
+
+        if (currentView === 'week') {
+            renderWeek(start);
+        } else {
+            renderMonth(start);
+        }
+    }
+
+    // 更新下拉選單選項
+    function updateDropdown(baseDate) {
+        const dateSelect = document.getElementById('eventDate');
+        dateSelect.innerHTML = '';
+        const tempDate = new Date(baseDate);
+        
+        // 為了方便，下拉選單固定提供當前選定日期往後的 30 天供登記
+        for (let i = 0; i < 30; i++) {
+            const nextDay = new Date(tempDate);
+            nextDay.setDate(tempDate.getDate() + i);
+            const m = nextDay.getMonth() + 1;
+            const d = nextDay.getDate();
+            const dateStr = `${m}/${d}`;
+            
+            let opt = document.createElement('option');
+            opt.value = dateStr;
+            opt.innerText = dateStr;
+            dateSelect.appendChild(opt);
+        }
+    }
+
+    // 渲染「週」檢視
+    function renderWeek(baseDate) {
+        const grid = document.getElementById('weekGrid');
+        grid.innerHTML = '';
+
+        for (let i = 0; i < 7; i++) {
+            const currentDay = new Date(baseDate);
+            currentDay.setDate(baseDate.getDate() + i);
+            const dateStr = `${currentDay.getMonth() + 1}/${currentDay.getDate()}`;
+
+            const card = document.createElement('div');
+            card.className = 'day-card';
+
+            const title = document.createElement('div');
+            title.className = 'date-title';
+            title.innerText = dateStr;
+            card.appendChild(title);
+
+            const dayEvents = scheduleData[dateStr] || [];
+            const hasEvents = dayEvents.length > 0;
+
+            const dot = document.createElement('div');
+            dot.className = hasEvents ? 'status-dot empty' : 'status-dot green';
+            card.appendChild(dot);
+
+            const busyList = document.createElement('div');
+            busyList.className = 'busy-list';
+
+            if (hasEvents) {
+                dayEvents.forEach((ev, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'busy-item';
+                    item.innerHTML = `<span><strong>${ev.name}</strong> (${ev.title})</span>`;
+                    
+                    const delBtn = document.createElement('span');
+                    delBtn.className = 'delete-item-btn';
+                    delBtn.innerText = '×';
+                    delBtn.onclick = () => deleteEvent(dateStr, index);
+                    
+                    item.appendChild(delBtn);
+                    busyList.appendChild(item);
+                });
+            } else {
+                busyList.style.textAlign = 'center';
+                busyList.style.color = '#2ecc71';
+                busyList.innerText = '全員有空！';
+            }
+            
+            card.appendChild(busyList);
+            grid.appendChild(card);
+        }
+    }
+
+    // 渲染「月」檢視
+    function renderMonth(baseDate) {
+        const grid = document.getElementById('monthGrid');
+        grid.innerHTML = '';
+
+        // 畫出星期一到星期日的標題
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        weekdays.forEach(day => {
+            const th = document.createElement('div');
+            th.className = 'month-header-cell';
+            th.innerText = day;
+            grid.appendChild(th);
+        });
+
+        const year = baseDate.getFullYear();
+        const month = baseDate.getMonth();
+        
+        // 取得這個月第一天是星期幾，以及這個月有幾天
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDayOfWeek = firstDay.getDay(); 
+        const totalDays = lastDay.getDate();
+
+        // 填補第一週前面的空白格子
+        for (let i = 0; i < startDayOfWeek; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'month-cell empty-cell';
+            grid.appendChild(emptyCell);
+        }
+
+        // 畫出這個月的每一天
+        for (let i = 1; i <= totalDays; i++) {
+            const dateStr = `${month + 1}/${i}`;
+            const cell = document.createElement('div');
+            cell.className = 'month-cell';
+
+            // 日期數字
+            const dateText = document.createElement('div');
+            dateText.className = 'month-date-text';
+            dateText.innerText = i;
+            cell.appendChild(dateText);
+
+            // 判斷狀態
+            const dayEvents = scheduleData[dateStr] || [];
+            const hasEvents = dayEvents.length > 0;
+
+            const dot = document.createElement('div');
+            dot.className = hasEvents ? 'status-dot small empty' : 'status-dot small green';
+            cell.appendChild(dot);
+
+            // 月檢視因為空間小，只列出名字
+            if (hasEvents) {
+                const namesDiv = document.createElement('div');
+                namesDiv.className = 'month-busy-names';
+                // 將所有沒空的人的名字用頓號連起來
+                const namesArray = dayEvents.map(ev => ev.name);
+                // 去除重複的名字
+                const uniqueNames = [...new Set(namesArray)];
+                namesDiv.innerText = uniqueNames.join('、');
+                cell.appendChild(namesDiv);
+            }
+
+            grid.appendChild(cell);
+        }
+    }
+
+    // 新增行程
+    function addEvent() {
+        const date = document.getElementById('eventDate').value;
+        const name = document.getElementById('personName').value.trim();
+        const title = document.getElementById('eventTitle').value.trim();
+
+        if (!name || !title) {
+            alert('請填寫名字與活動內容喔！');
+            return;
+        }
+
+        if (!scheduleData[date]) scheduleData[date] = [];
+        scheduleData[date].push({ name: name, title: title });
+
+        saveData();
+        updateCalendar();
+
+        document.getElementById('personName').value = '';
+        document.getElementById('eventTitle').value = '';
+    }
+
+    // 刪除行程
+    function deleteEvent(date, index) {
+        scheduleData[date].splice(index, 1);
+        if (scheduleData[date].length === 0) {
+            delete scheduleData[date];
+        }
+        saveData();
+        updateCalendar();
+    }
+
+    // 清空資料
+    function clearAllData() {
+        if (confirm('確定要清空所有人記錄的行程嗎？')) {
+            scheduleData = {};
+            saveData();
+            updateCalendar();
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem('friendGroupSchedule', JSON.stringify(scheduleData));
+    }
+
+    // 初始化
+    window.onload = () => {
+        const datePicker = document.getElementById('startDatePicker');
+        datePicker.value = formatDateToYYYYMMDD(new Date());
+        
+        // 預設載入週檢視
+        switchView('week');
+    };
+</script>
+
+</body>
+</html>
