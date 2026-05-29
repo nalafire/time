@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>朋友出遊喬時間神器 (動態週次版)</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Apple LiGothic Medium', sans-serif;
+            background-color: #f5f6fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        /* 頂部切換日期區塊 */
+        .week-control {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .week-control label {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .week-control input[type="date"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        
+        /* 輸入表單區塊 */
+        .form-section {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            min-width: 150px;
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #27ae60;
+        }
+        .btn-clear {
+            background-color: #e74c3c;
+        }
+        .btn-clear:hover {
+            background-color: #c0392b;
+        }
+
+        /* 行事曆看板區塊 */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .day-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 180px;
+        }
+        .date-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #34495e;
+            margin-bottom: 12px;
+        }
+
+        /* 狀態點點 */
+        .status-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+        }
+        .green {
+            background-color: #2ecc71;
+            box-shadow: 0 0 8px rgba(46,204,113,0.5);
+        }
+        .empty {
+            background-color: transparent;
+            border: 2px dashed #bdc3c7;
+        }
+
+        /* 忙碌名單列表 */
+        .busy-list {
+            font-size: 0.85rem;
+            color: #555;
+            width: 100%;
+            text-align: left;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            overflow-y: auto;
+            max-height: 100px;
+        }
+        .busy-item {
+            margin-bottom: 4px;
+            word-break: break-all;
+            display: flex;
+            justify-content: space-between;
+        }
+        .delete-item-btn {
+            color: #e74c3c;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📅 朋友出遊喬時間神器</h1>
+
+    <div class="week-control">
+        <label for="startDatePicker">選擇這週的第一天：</label>
+        <input type="date" id="startDatePicker" onchange="changeWeek()">
+    </div>
+
+    <div class="form-section">
+        <div class="form-group">
+            <label for="eventDate">登記日期</label>
+            <select id="eventDate">
+                </select>
+        </div>
+        <div class="form-group">
+            <label for="personName">誰沒空？ (名字)</label>
+            <input type="text" id="personName" placeholder="例如：小明" required>
+        </div>
+        <div class="form-group">
+            <label for="eventTitle">要做什麼？ (活動)</label>
+            <input type="text" id="eventTitle" placeholder="例如：補習班" required>
+        </div>
+        <button onclick="addEvent()">新增行程</button>
+        <button class="btn-clear" onclick="clearAllData()">全部清空</button>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid">
+        </div>
+</div>
+
+<script>
+    // 資料儲存庫與目前顯示的日期清單
+    let scheduleData = JSON.parse(localStorage.getItem('friendGroupSchedule')) || {};
+    let dateList = [];
+
+    // 取得今天的日期 (格式 YYYY-MM-DD) 作為預設值
+    function getTodayString() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // 當使用者在日曆選了新日期時觸發
+    function changeWeek() {
+        const pickedDate = document.getElementById('startDatePicker').value;
+        if (!pickedDate) return;
+        
+        // 根據選的日期，往後推算 7 天
+        dateList = [];
+        const start = new Date(pickedDate);
+        
+        for (let i = 0; i < 7; i++) {
+            const nextDay = new Date(start);
+            nextDay.setDate(start.getDate() + i);
+            const month = nextDay.getMonth() + 1;
+            const date = nextDay.getDate();
+            dateList.push(`${month}/${date}`);
+        }
+        
+        updateUI();
+    }
+
+    // 更新下拉選單與行事曆畫面
+    function updateUI() {
+        // 更新下拉選單
+        const dateSelect = document.getElementById('eventDate');
+        dateSelect.innerHTML = '';
+        dateList.forEach(date => {
+            let opt = document.createElement('option');
+            opt.value = date;
+            opt.innerText = date;
+            dateSelect.appendChild(opt);
+        });
+        
+        // 渲染行事曆
+        renderCalendar();
+    }
+
+    // 渲染行事曆畫面
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        dateList.forEach(date => {
+            const card = document.createElement('div');
+            card.className = 'day-card';
+
+            const title = document.createElement('div');
+            title.className = 'date-title';
+            title.innerText = date;
+            card.appendChild(title);
+
+            const dayEvents = scheduleData[date] || [];
+            const hasEvents = dayEvents.length > 0;
+
+            const dot = document.createElement('div');
+            dot.className = hasEvents ? 'status-dot empty' : 'status-dot green';
+            card.appendChild(dot);
+
+            const busyList = document.createElement('div');
+            busyList.className = 'busy-list';
+
+            if (hasEvents) {
+                dayEvents.forEach((ev, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'busy-item';
+                    item.innerHTML = `<span><strong>${ev.name}</strong> (${ev.title})</span>`;
+                    
+                    const delBtn = document.createElement('span');
+                    delBtn.className = 'delete-item-btn';
+                    delBtn.innerText = '×';
+                    delBtn.onclick = () => deleteEvent(date, index);
+                    
+                    item.appendChild(delBtn);
+                    busyList.appendChild(item);
+                });
+            } else {
+                busyList.style.textAlign = 'center';
+                busyList.style.color = '#2ecc71';
+                busyList.innerText = '全員有空！';
+            }
+            
+            card.appendChild(busyList);
+            grid.appendChild(card);
+        });
+    }
+
+    // 新增行程
+    function addEvent() {
+        const date = document.getElementById('eventDate').value;
+        const name = document.getElementById('personName').value.trim();
+        const title = document.getElementById('eventTitle').value.trim();
+
+        if (!name || !title) {
+            alert('請填寫名字與活動內容喔！');
+            return;
+        }
+
+        if (!scheduleData[date]) scheduleData[date] = [];
+        scheduleData[date].push({ name: name, title: title });
+
+        saveData();
+        renderCalendar();
+
+        document.getElementById('personName').value = '';
+        document.getElementById('eventTitle').value = '';
+    }
+
+    // 刪除行程
+    function deleteEvent(date, index) {
+        scheduleData[date].splice(index, 1);
+        if (scheduleData[date].length === 0) {
+            delete scheduleData[date];
+        }
+        saveData();
+        renderCalendar();
+    }
+
+    // 清空資料
+    function clearAllData() {
+        if (confirm('確定要清空所有人記錄的行程嗎？(包含其他週次的資料也會消失喔)')) {
+            scheduleData = {};
+            saveData();
+            renderCalendar();
+        }
+    }
+
+    // 儲存資料
+    function saveData() {
+        localStorage.setItem('friendGroupSchedule', JSON.stringify(scheduleData));
+    }
+
+    // 網頁載入時的初始化動作
+    window.onload = () => {
+        // 設定日期選擇器預設為今天
+        const todayStr = getTodayString();
+        const datePicker = document.getElementById('startDatePicker');
+        datePicker.value = todayStr;
+        
+        // 觸發一次切換週次來產生畫面
+        changeWeek();
+    };
+</script>
+
+</body>
+</html>
