@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>朋友出遊喬時間神器 (手動版)</title>
+    <title>朋友出遊喬時間神器 (動態週次版)</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, 'Apple LiGothic Medium', sans-serif;
@@ -20,6 +20,31 @@
             color: #2c3e50;
             text-align: center;
             margin-bottom: 30px;
+        }
+        
+        /* 頂部切換日期區塊 */
+        .week-control {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .week-control label {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .week-control input[type="date"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
         }
         
         /* 輸入表單區塊 */
@@ -45,7 +70,7 @@
             color: #7f8c8d;
             font-size: 0.9rem;
         }
-        input, select {
+        input[type="text"], select {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -89,7 +114,6 @@
             flex-direction: column;
             align-items: center;
             min-height: 180px;
-            position: relative;
         }
         .date-title {
             font-weight: bold;
@@ -144,9 +168,14 @@
 <div class="container">
     <h1>📅 朋友出遊喬時間神器</h1>
 
+    <div class="week-control">
+        <label for="startDatePicker">選擇這週的第一天：</label>
+        <input type="date" id="startDatePicker" onchange="changeWeek()">
+    </div>
+
     <div class="form-section">
         <div class="form-group">
-            <label for="eventDate">選擇日期</label>
+            <label for="eventDate">登記日期</label>
             <select id="eventDate">
                 </select>
         </div>
@@ -167,14 +196,42 @@
 </div>
 
 <script>
-    // 預設產生的日期範圍（這裡設定 5/11 ~ 5/20，你可以自由修改下面這個陣列）
-    const dateList = ["5/11", "5/12", "5/13", "5/14", "5/15", "5/16", "5/17", "5/18", "5/19", "5/20"];
-
-    // 從瀏覽器紀錄抓取資料，若沒有就建立空的
+    // 資料儲存庫與目前顯示的日期清單
     let scheduleData = JSON.parse(localStorage.getItem('friendGroupSchedule')) || {};
+    let dateList = [];
 
-    // 初始化：填入下拉選單與渲染行事曆
-    function init() {
+    // 取得今天的日期 (格式 YYYY-MM-DD) 作為預設值
+    function getTodayString() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // 當使用者在日曆選了新日期時觸發
+    function changeWeek() {
+        const pickedDate = document.getElementById('startDatePicker').value;
+        if (!pickedDate) return;
+        
+        // 根據選的日期，往後推算 7 天
+        dateList = [];
+        const start = new Date(pickedDate);
+        
+        for (let i = 0; i < 7; i++) {
+            const nextDay = new Date(start);
+            nextDay.setDate(start.getDate() + i);
+            const month = nextDay.getMonth() + 1;
+            const date = nextDay.getDate();
+            dateList.push(`${month}/${date}`);
+        }
+        
+        updateUI();
+    }
+
+    // 更新下拉選單與行事曆畫面
+    function updateUI() {
+        // 更新下拉選單
         const dateSelect = document.getElementById('eventDate');
         dateSelect.innerHTML = '';
         dateList.forEach(date => {
@@ -183,6 +240,8 @@
             opt.innerText = date;
             dateSelect.appendChild(opt);
         });
+        
+        // 渲染行事曆
         renderCalendar();
     }
 
@@ -195,22 +254,18 @@
             const card = document.createElement('div');
             card.className = 'day-card';
 
-            // 日期標題
             const title = document.createElement('div');
             title.className = 'date-title';
             title.innerText = date;
             card.appendChild(title);
 
-            // 檢查這天有沒有人有行程
             const dayEvents = scheduleData[date] || [];
             const hasEvents = dayEvents.length > 0;
 
-            // 狀態點點：有行程變空缺，沒行程亮綠燈
             const dot = document.createElement('div');
             dot.className = hasEvents ? 'status-dot empty' : 'status-dot green';
             card.appendChild(dot);
 
-            // 底下列表：顯示名字與活動
             const busyList = document.createElement('div');
             busyList.className = 'busy-list';
 
@@ -220,7 +275,6 @@
                     item.className = 'busy-item';
                     item.innerHTML = `<span><strong>${ev.name}</strong> (${ev.title})</span>`;
                     
-                    // 個別刪除按鈕
                     const delBtn = document.createElement('span');
                     delBtn.className = 'delete-item-btn';
                     delBtn.innerText = '×';
@@ -240,7 +294,7 @@
         });
     }
 
-    // 新增行程功能
+    // 新增行程
     function addEvent() {
         const date = document.getElementById('eventDate').value;
         const name = document.getElementById('personName').value.trim();
@@ -251,24 +305,17 @@
             return;
         }
 
-        // 如果這天還沒有資料，先開一個新陣列
-        if (!scheduleData[date]) {
-            scheduleData[date] = [];
-        }
-
-        // 把人名和活動推進去
+        if (!scheduleData[date]) scheduleData[date] = [];
         scheduleData[date].push({ name: name, title: title });
 
-        // 儲存並重新渲染
         saveData();
         renderCalendar();
 
-        // 清空輸入框
         document.getElementById('personName').value = '';
         document.getElementById('eventTitle').value = '';
     }
 
-    // 刪除單一行程
+    // 刪除行程
     function deleteEvent(date, index) {
         scheduleData[date].splice(index, 1);
         if (scheduleData[date].length === 0) {
@@ -278,22 +325,30 @@
         renderCalendar();
     }
 
-    // 清空全部資料
+    // 清空資料
     function clearAllData() {
-        if (confirm('確定要清空所有人記錄的行程嗎？')) {
+        if (confirm('確定要清空所有人記錄的行程嗎？(包含其他週次的資料也會消失喔)')) {
             scheduleData = {};
             saveData();
             renderCalendar();
         }
     }
 
-    // 儲存到瀏覽器
+    // 儲存資料
     function saveData() {
         localStorage.setItem('friendGroupSchedule', JSON.stringify(scheduleData));
     }
 
-    // 啟動
-    init();
+    // 網頁載入時的初始化動作
+    window.onload = () => {
+        // 設定日期選擇器預設為今天
+        const todayStr = getTodayString();
+        const datePicker = document.getElementById('startDatePicker');
+        datePicker.value = todayStr;
+        
+        // 觸發一次切換週次來產生畫面
+        changeWeek();
+    };
 </script>
 
 </body>
